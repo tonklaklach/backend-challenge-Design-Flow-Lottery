@@ -1,0 +1,1272 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Lottery Search and Allocation — Design Proposal",
+    "version": "1.0.0-design",
+    "description": "สเปคที่เสนอสำหรับโจทย์สลากหนึ่งล้านใบ รับข้อมูลธุรกิจผ่าน JSON body และ JWT ผ่าน Authorization header เป็นเอกสารออกแบบ ยังไม่มี server หรือผลวัดความเร็ว ส่วน confirm เป็นตัวเลือกเพิ่มเติมจากโจทย์ขั้นต่ำ"
+  },
+  "servers": [
+    {
+      "url": "https://lottery.example.test",
+      "description": "URL สมมติสำหรับอ่านสเปค ยังไม่มี server ที่ URL นี้"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Lottery allocation",
+      "description": "ค้นหาและจองสลากโดยตรวจเจ้าของ และเปลี่ยนข้อมูลที่เกี่ยวข้องให้สำเร็จพร้อมกัน"
+    }
+  ],
+  "paths": {
+    "/v1/tickets/search": {
+      "post": {
+        "operationId": "searchTickets",
+        "summary": "ค้นหาและจองสลาก",
+        "description": "ค้นหาและจองใน transaction เดียว key เดิมของผู้ใช้เดิมกับ pattern/limit เดิมคืนการจองเดิม หาก payload เปลี่ยนตอบ 409 IDEMPOTENCY_CONFLICT หากเลือกสลากไม่ได้ตอบ 409 ALLOCATION_UNAVAILABLE โดยไม่สร้าง reservation/key คืนให้น้อยกว่า limit ได้ ไม่มี total หรือลำดับที่รับประกัน การ retry ไม่ต่อเวลาและไม่เปิด terminal reservation กลับมา active หากหมดเวลาแล้วคืนประวัติด้วย 200",
+        "tags": [
+          "Lottery allocation"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "ต้องมี JSON body ส่ง business fields ผ่าน body เท่านั้น ปฏิเสธ unknown fields",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest",
+                "description": "รูปแบบข้อมูลที่ต้องส่ง"
+              },
+              "example": {
+                "pattern": "****23",
+                "limit": 2,
+                "idempotency_key": "search-user-a-001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "สร้างและ commit การจองใหม่แล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse",
+                  "description": "สร้างและ commit การจองใหม่แล้ว"
+                },
+                "example": {
+                  "data": {
+                    "reservation": {
+                      "id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0",
+                      "user_id": "user-a",
+                      "pattern": "****23",
+                      "requested_count": 2,
+                      "allocated_count": 2,
+                      "status": "active",
+                      "created_at": "2026-11-02T10:00:00Z",
+                      "expires_at": "2026-11-02T10:05:00Z",
+                      "updated_at": "2026-11-02T10:00:00Z",
+                      "tickets": [
+                        {
+                          "ticket_id": "24",
+                          "number": "000023"
+                        },
+                        {
+                          "ticket_id": "124",
+                          "number": "000123"
+                        }
+                      ]
+                    },
+                    "replayed": false
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "คืน reservation เดิมพร้อมสถานะปัจจุบัน โดย replayed=true",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse",
+                  "description": "คืน reservation เดิมพร้อมสถานะปัจจุบัน โดย replayed=true"
+                },
+                "example": {
+                  "data": {
+                    "reservation": {
+                      "id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0",
+                      "user_id": "user-a",
+                      "pattern": "****23",
+                      "requested_count": 2,
+                      "allocated_count": 2,
+                      "status": "active",
+                      "created_at": "2026-11-02T10:00:00Z",
+                      "expires_at": "2026-11-02T10:05:00Z",
+                      "updated_at": "2026-11-02T10:00:00Z",
+                      "tickets": [
+                        {
+                          "ticket_id": "24",
+                          "number": "000023"
+                        },
+                        {
+                          "ticket_id": "124",
+                          "number": "000123"
+                        }
+                      ]
+                    },
+                    "replayed": true
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง"
+                },
+                "example": {
+                  "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "Request validation failed."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ไม่มี JWT ที่ตรวจผ่าน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่มี JWT ที่ตรวจผ่าน"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "Valid bearer token required."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ไม่สามารถจัดสรรได้ หรือ payload/key/สถานะขัดแย้งตาม operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่สามารถจัดสรรได้ หรือ payload/key/สถานะขัดแย้งตาม operation"
+                },
+                "example": {
+                  "error": {
+                    "code": "ALLOCATION_UNAVAILABLE",
+                    "message": "No matching tickets can be allocated at this time."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "ข้อผิดพลาดภายในระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อผิดพลาดภายในระบบ"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal server error."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว"
+                },
+                "example": {
+                  "error": {
+                    "code": "TEMPORARILY_UNAVAILABLE",
+                    "message": "Allocation service temporarily unavailable."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "504": {
+            "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน"
+                },
+                "example": {
+                  "error": {
+                    "code": "DEADLINE_EXCEEDED",
+                    "message": "Request deadline exceeded."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reservations/get": {
+      "post": {
+        "operationId": "getReservation",
+        "summary": "ดูการจองของตัวเอง",
+        "description": "ตรวจ owner ถ้าไม่พบหรือเป็นของผู้อื่นตอบ 404 เหมือนกัน ถ้า hold หมดเวลาให้คืนสลาก/บันทึก expired ก่อนตอบ 200 พร้อม history",
+        "tags": [
+          "Lottery allocation"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "ต้องมี JSON body ส่ง business fields ผ่าน body เท่านั้น ปฏิเสธ unknown fields",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationRequest",
+                "description": "รูปแบบข้อมูลที่ต้องส่ง"
+              },
+              "example": {
+                "reservation_id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "คืนข้อมูลปัจจุบันตามสถานะของการจอง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResponse",
+                  "description": "คืนข้อมูลปัจจุบันตามสถานะของการจอง"
+                },
+                "example": {
+                  "data": {
+                    "id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0",
+                    "user_id": "user-a",
+                    "pattern": "****23",
+                    "requested_count": 2,
+                    "allocated_count": 2,
+                    "status": "active",
+                    "created_at": "2026-11-02T10:00:00Z",
+                    "expires_at": "2026-11-02T10:05:00Z",
+                    "updated_at": "2026-11-02T10:00:00Z",
+                    "tickets": [
+                      {
+                        "ticket_id": "24",
+                        "number": "000023"
+                      },
+                      {
+                        "ticket_id": "124",
+                        "number": "000123"
+                      }
+                    ]
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง"
+                },
+                "example": {
+                  "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "Request validation failed."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ไม่มี JWT ที่ตรวจผ่าน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่มี JWT ที่ตรวจผ่าน"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "Valid bearer token required."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ไม่พบการจองหรือผู้ใช้ไม่ใช่เจ้าของ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่พบการจองหรือผู้ใช้ไม่ใช่เจ้าของ"
+                },
+                "example": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "Reservation not found."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "ข้อผิดพลาดภายในระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อผิดพลาดภายในระบบ"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal server error."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว"
+                },
+                "example": {
+                  "error": {
+                    "code": "TEMPORARILY_UNAVAILABLE",
+                    "message": "Allocation service temporarily unavailable."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "504": {
+            "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน"
+                },
+                "example": {
+                  "error": {
+                    "code": "DEADLINE_EXCEEDED",
+                    "message": "Request deadline exceeded."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reservations/confirm": {
+      "post": {
+        "operationId": "confirmReservation",
+        "summary": "ยืนยันการจองของตัวเอง — ตัวเลือกเพิ่มเติม",
+        "description": "ไม่เกี่ยวกับการชำระเงิน active ก่อน deadline เปลี่ยนเป็น confirmed และ tickets เป็น allocated ใน transaction เดียว ถ้า confirmed อยู่แล้วตอบ 200; released ตอบ 409 STATE_CONFLICT; expired ตอบ 410",
+        "tags": [
+          "Lottery allocation"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "ต้องมี JSON body ส่ง business fields ผ่าน body เท่านั้น ปฏิเสธ unknown fields",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationRequest",
+                "description": "รูปแบบข้อมูลที่ต้องส่ง"
+              },
+              "example": {
+                "reservation_id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "คืนข้อมูลปัจจุบันตามสถานะของการจอง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResponse",
+                  "description": "คืนข้อมูลปัจจุบันตามสถานะของการจอง"
+                },
+                "example": {
+                  "data": {
+                    "id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0",
+                    "user_id": "user-a",
+                    "pattern": "****23",
+                    "requested_count": 2,
+                    "allocated_count": 2,
+                    "status": "confirmed",
+                    "created_at": "2026-11-02T10:00:00Z",
+                    "expires_at": "2026-11-02T10:05:00Z",
+                    "updated_at": "2026-11-02T10:02:00Z",
+                    "tickets": [
+                      {
+                        "ticket_id": "24",
+                        "number": "000023"
+                      },
+                      {
+                        "ticket_id": "124",
+                        "number": "000123"
+                      }
+                    ]
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง"
+                },
+                "example": {
+                  "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "Request validation failed."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ไม่มี JWT ที่ตรวจผ่าน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่มี JWT ที่ตรวจผ่าน"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "Valid bearer token required."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ไม่พบการจองหรือผู้ใช้ไม่ใช่เจ้าของ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่พบการจองหรือผู้ใช้ไม่ใช่เจ้าของ"
+                },
+                "example": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "Reservation not found."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "ข้อผิดพลาดภายในระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อผิดพลาดภายในระบบ"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal server error."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว"
+                },
+                "example": {
+                  "error": {
+                    "code": "TEMPORARILY_UNAVAILABLE",
+                    "message": "Allocation service temporarily unavailable."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "504": {
+            "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน"
+                },
+                "example": {
+                  "error": {
+                    "code": "DEADLINE_EXCEEDED",
+                    "message": "Request deadline exceeded."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ไม่สามารถจัดสรรได้ หรือ payload/key/สถานะขัดแย้งตาม operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่สามารถจัดสรรได้ หรือ payload/key/สถานะขัดแย้งตาม operation"
+                },
+                "example": {
+                  "error": {
+                    "code": "STATE_CONFLICT",
+                    "message": "Reservation state conflicts with this action."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "การจองหมดเวลาแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "การจองหมดเวลาแล้ว"
+                },
+                "example": {
+                  "error": {
+                    "code": "RESERVATION_EXPIRED",
+                    "message": "Reservation expired."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reservations/release": {
+      "post": {
+        "operationId": "releaseReservation",
+        "summary": "ยกเลิกการจองและคืนสลาก",
+        "description": "active ก่อน deadline เปลี่ยนเป็น released และคืน tickets เป็น available ใน transaction เดียว ถ้า released อยู่แล้วตอบ 200; confirmed ตอบ 409 STATE_CONFLICT; expired ตอบ 410",
+        "tags": [
+          "Lottery allocation"
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "ต้องมี JSON body ส่ง business fields ผ่าน body เท่านั้น ปฏิเสธ unknown fields",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservationRequest",
+                "description": "รูปแบบข้อมูลที่ต้องส่ง"
+              },
+              "example": {
+                "reservation_id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "คืนข้อมูลปัจจุบันตามสถานะของการจอง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResponse",
+                  "description": "คืนข้อมูลปัจจุบันตามสถานะของการจอง"
+                },
+                "example": {
+                  "data": {
+                    "id": "ecad59f1-a023-40c1-9213-ef7f7cf396a0",
+                    "user_id": "user-a",
+                    "pattern": "****23",
+                    "requested_count": 2,
+                    "allocated_count": 2,
+                    "status": "released",
+                    "created_at": "2026-11-02T10:00:00Z",
+                    "expires_at": "2026-11-02T10:05:00Z",
+                    "updated_at": "2026-11-02T10:02:00Z",
+                    "tickets": [
+                      {
+                        "ticket_id": "24",
+                        "number": "000023"
+                      },
+                      {
+                        "ticket_id": "124",
+                        "number": "000123"
+                      }
+                    ]
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อมูลที่ส่งมาไม่ถูกต้อง"
+                },
+                "example": {
+                  "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "Request validation failed."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "ไม่มี JWT ที่ตรวจผ่าน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่มี JWT ที่ตรวจผ่าน"
+                },
+                "example": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "Valid bearer token required."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ไม่พบการจองหรือผู้ใช้ไม่ใช่เจ้าของ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่พบการจองหรือผู้ใช้ไม่ใช่เจ้าของ"
+                },
+                "example": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "Reservation not found."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ส่งคำขอเกินเกณฑ์ที่กำหนด"
+                },
+                "example": {
+                  "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Too many requests."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "ข้อผิดพลาดภายในระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ข้อผิดพลาดภายในระบบ"
+                },
+                "example": {
+                  "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal server error."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ระบบยังรับงานนี้ไม่ได้ชั่วคราว"
+                },
+                "example": {
+                  "error": {
+                    "code": "TEMPORARILY_UNAVAILABLE",
+                    "message": "Allocation service temporarily unavailable."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "จำนวนวินาทีขั้นต่ำที่แนะนำให้รอก่อนลองใหม่ ใช้ key เดิมและสุ่มเวลารอเพิ่มเล็กน้อย",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "required": true
+              }
+            }
+          },
+          "504": {
+            "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "คำขอใช้เวลาเกินกำหนดและผล commit อาจยังไม่ชัดเจน"
+                },
+                "example": {
+                  "error": {
+                    "code": "DEADLINE_EXCEEDED",
+                    "message": "Request deadline exceeded."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ไม่สามารถจัดสรรได้ หรือ payload/key/สถานะขัดแย้งตาม operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "ไม่สามารถจัดสรรได้ หรือ payload/key/สถานะขัดแย้งตาม operation"
+                },
+                "example": {
+                  "error": {
+                    "code": "STATE_CONFLICT",
+                    "message": "Reservation state conflicts with this action."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "การจองหมดเวลาแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse",
+                  "description": "การจองหมดเวลาแล้ว"
+                },
+                "example": {
+                  "error": {
+                    "code": "RESERVATION_EXPIRED",
+                    "message": "Reservation expired."
+                  },
+                  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT แบบ HS256 ที่ตรวจ signature และ issuer ถูกต้อง มี exp และ sub ไม่ว่าง ตรวจ nbf/iat เมื่อมีค่า ไม่ส่ง signing secret มากับคำขอ ต้องตกลงวิธีเปลี่ยน key และผู้มีสิทธิ์ถือ key ก่อน production"
+      }
+    },
+    "schemas": {
+      "SearchRequest": {
+        "type": "object",
+        "description": "ข้อมูลสำหรับค้นหาและจองสลาก ทุก field ต้องส่ง",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "คำค้นยาว 6 ตัว ใช้เลข ASCII 0–9 หรือ * เท่านั้น แต่ละ * แทนเลขหนึ่งหลัก ไม่ตัดช่องว่างให้",
+            "minLength": 6,
+            "maxLength": 6,
+            "pattern": "^[0-9*]{6}$"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "จำนวนใบสูงสุดที่ต้องการ ต้องระบุ 1–100 ไม่มีค่าเริ่มต้น ระบบอาจคืนให้น้อยกว่าที่ขอได้"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "รหัสคำขอที่ client สร้าง ใช้ค่าเดิมเมื่อ retry สำหรับผู้ใช้คนเดิม ห้ามว่าง/มีแต่ช่องว่าง/มี NUL และยาวไม่เกิน 128 UTF-8 bytes ไม่แก้ตัวใหญ่เล็กหรือตัดช่องว่างก่อนเทียบ",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?=.*\\S)[^\\u0000]+$",
+            "x-maxUtf8Bytes": 128
+          }
+        },
+        "required": [
+          "pattern",
+          "limit",
+          "idempotency_key"
+        ],
+        "additionalProperties": false
+      },
+      "ReservationRequest": {
+        "type": "object",
+        "description": "ข้อมูลสำหรับ get, confirm หรือ release โดยส่ง ID ใน JSON body",
+        "properties": {
+          "reservation_id": {
+            "type": "string",
+            "description": "UUID ของการจองที่ต้องการใช้งาน ต้องเป็นของผู้ใช้ที่อยู่ใน JWT",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "reservation_id"
+        ],
+        "additionalProperties": false
+      },
+      "Ticket": {
+        "type": "object",
+        "description": "สลากหนึ่งใบในผลการจองหรือประวัติ",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "description": "ID ของสลากใบจริง DB เก็บเป็น bigint แต่ API ส่งเป็น string ของเลขจำนวนเต็มบวก เพื่อไม่ให้ client อ่านเลขคลาดเคลื่อน",
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "number": {
+            "type": "string",
+            "description": "เลขสลาก 6 หลัก เก็บเป็น string เพื่อรักษาศูนย์นำหน้า คนละ ticket_id อาจมี number เดียวกันได้",
+            "minLength": 6,
+            "maxLength": 6,
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "ticket_id",
+          "number"
+        ]
+      },
+      "Reservation": {
+        "type": "object",
+        "description": "ข้อมูลการจองของเจ้าของ หาก released/expired รายการ tickets เป็นประวัติ ไม่ใช่สิทธิ์จองที่ยังใช้งานได้",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "UUID ของการจอง สร้างใหม่ต่อการจัดสรรครั้งใหม่ ไม่เอา ID เก่ากลับมาใช้",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "เจ้าของการจองจาก sub ใน JWT ไม่รับให้ client เลือกผ่าน body ไม่เกิน 256 UTF-8 bytes",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-maxUtf8Bytes": 256
+          },
+          "pattern": {
+            "type": "string",
+            "description": "pattern ที่ใช้สร้างการจอง ยาว 6 ตัวเลข/* และไม่เปลี่ยนจากเดิม",
+            "minLength": 6,
+            "maxLength": 6,
+            "pattern": "^[0-9*]{6}$"
+          },
+          "requested_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "limit ที่ผู้ใช้ขอไว้ครั้งแรก อยู่ระหว่าง 1–100 และไม่เปลี่ยนเมื่อ retry"
+          },
+          "allocated_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "จำนวนใบที่จองได้จริง อยู่ระหว่าง 1–100 ต้องเท่ากับ tickets.length และไม่เกิน requested_count"
+          },
+          "status": {
+            "type": "string",
+            "description": "active=กำลัง hold, confirmed=ยืนยันแล้ว, released=ผู้ใช้ยกเลิก, expired=หมดเวลา",
+            "enum": [
+              "active",
+              "confirmed",
+              "released",
+              "expired"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "description": "เวลาสร้างจากฐานข้อมูล ส่งเป็น UTC รูปแบบ RFC 3339 เช่น 2026-11-02T10:00:00Z",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "เวลาสิ้นสุด hold ต้องหลัง created_at หาก confirmed แล้วเวลานี้ไม่ทำให้การยืนยันหมดอายุ",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "เวลาที่สถานะเปลี่ยนล่าสุดจากฐานข้อมูล ส่งเป็น UTC RFC 3339 การ retry ที่ไม่เปลี่ยนสถานะไม่แก้เวลานี้",
+            "format": "date-time"
+          },
+          "tickets": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "สลากที่เคยได้จากการจองนี้ 1–100 ใบ ไม่รับประกันลำดับ เมื่อ released/expired แล้วยังคงคืนรายการเดิมเป็นประวัติ",
+            "items": {
+              "$ref": "#/components/schemas/Ticket",
+              "description": "ID และเลขของสลากแต่ละใบ"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "pattern",
+          "requested_count",
+          "allocated_count",
+          "status",
+          "created_at",
+          "expires_at",
+          "updated_at",
+          "tickets"
+        ]
+      },
+      "SearchData": {
+        "type": "object",
+        "description": "ผลการค้นหาและจอง",
+        "properties": {
+          "reservation": {
+            "$ref": "#/components/schemas/Reservation",
+            "description": "การจองเดิมพร้อมสถานะปัจจุบัน หากถึงเวลาหมดอายุให้จัดการ expiry ก่อนคืนผล"
+          },
+          "replayed": {
+            "type": "boolean",
+            "description": "false เมื่อสร้างใหม่และตอบ 201; true เมื่อได้รายการเดิมจาก key เดิมและตอบ 200 ไม่ต่อเวลา hold"
+          }
+        },
+        "required": [
+          "reservation",
+          "replayed"
+        ]
+      },
+      "SearchResponse": {
+        "type": "object",
+        "description": "Response ของ search ทั้งกรณีสร้างใหม่และ retry",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SearchData",
+            "description": "ผลการค้นหาและจอง ประกอบด้วย reservation กับ replayed"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "UUID ที่ server สร้างสำหรับติดตาม HTTP request ครั้งนี้ จึงเปลี่ยนได้แม้ retry การจองเดิม",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ]
+      },
+      "ReservationResponse": {
+        "type": "object",
+        "description": "Response ของ get, confirm และ release",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Reservation",
+            "description": "ข้อมูลการจองของเจ้าของ get อาจคืน status=expired ด้วย HTTP 200 ได้"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "UUID ที่ server สร้างสำหรับติดตาม HTTP request ครั้งนี้",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ]
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "description": "รายละเอียดว่า field ใดไม่ผ่าน validation",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "ชื่อหรือ path ของ field ที่ไม่ถูกต้อง เช่น pattern"
+          },
+          "message": {
+            "type": "string",
+            "description": "คำอธิบายที่อ่านให้ผู้ใช้หรือ developer เข้าใจ ไม่ควรให้ client แยกข้อความนี้เพื่อเลือก logic"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "description": "รหัสข้อผิดพลาดสำหรับโปรแกรม พร้อมข้อความอธิบาย",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "รหัสคงที่สำหรับให้ client เลือกวิธีจัดการร่วมกับ HTTP status ดูรายการในตาราง error codes",
+            "enum": [
+              "INVALID_REQUEST",
+              "UNAUTHENTICATED",
+              "RESERVATION_NOT_FOUND",
+              "ALLOCATION_UNAVAILABLE",
+              "IDEMPOTENCY_CONFLICT",
+              "STATE_CONFLICT",
+              "RESERVATION_EXPIRED",
+              "RATE_LIMITED",
+              "TEMPORARILY_UNAVAILABLE",
+              "DEADLINE_EXCEEDED",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "คำอธิบายที่ไม่เปิดเผย SQL, secret หรือ token"
+          },
+          "details": {
+            "type": "array",
+            "description": "รายละเอียด field ที่ไม่ผ่าน validation เป็น optional field ละได้เมื่อไม่เกี่ยวกับ field และห้ามเป็น null",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail",
+              "description": "ชื่อ field และสาเหตุที่ไม่ผ่าน validation"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Response ข้อผิดพลาดของ endpoints ที่กำหนดไว้",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/Error",
+            "description": "รหัสและข้อความอธิบายข้อผิดพลาด รวมรายละเอียด field ถ้ามี"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "UUID สำหรับติดตาม request ที่ไม่สำเร็จด้วย",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "error",
+          "request_id"
+        ]
+      }
+    }
+  }
+}

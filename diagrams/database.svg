@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+<title id="title">Lottery allocation relational database diagram</title>
+<desc id="desc">Tickets have an optional current reservation. Reservation items retain the many-to-many allocation history.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#49647c"/></marker></defs>
+<rect width="1200" height="800" fill="#f7f9fc"/>
+<text x="40" y="36" font-family="Arial,sans-serif" font-size="23" font-weight="bold" fill="#18344a">Lottery allocation — relational model</text>
+<rect x="40" y="80" width="520" height="320" rx="8" fill="white" stroke="#49647c" stroke-width="1.5"/>
+<path d="M48 80 H552 Q560 80 560 88 V120 H40 V88 Q40 80 48 80" fill="#1f5376"/>
+<text x="56" y="107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="white">tickets</text>
+<text x="54" y="141" font-family="monospace" font-size="13" fill="#203b4e">id</text>
+<text x="376" y="141" font-family="monospace" font-size="12" fill="#49647c">bigint identity</text>
+<text x="515" y="141" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376">PK</text>
+<text x="54" y="168" font-family="monospace" font-size="13" fill="#203b4e">number</text>
+<text x="376" y="168" font-family="monospace" font-size="12" fill="#49647c">varchar(6)</text>
+<text x="515" y="168" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="195" font-family="monospace" font-size="13" fill="#203b4e">d1</text>
+<text x="376" y="195" font-family="monospace" font-size="12" fill="#49647c">smallint generated</text>
+<text x="515" y="195" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="222" font-family="monospace" font-size="13" fill="#203b4e">d2</text>
+<text x="376" y="222" font-family="monospace" font-size="12" fill="#49647c">smallint generated</text>
+<text x="515" y="222" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="249" font-family="monospace" font-size="13" fill="#203b4e">d3</text>
+<text x="376" y="249" font-family="monospace" font-size="12" fill="#49647c">smallint generated</text>
+<text x="515" y="249" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="276" font-family="monospace" font-size="13" fill="#203b4e">d4</text>
+<text x="376" y="276" font-family="monospace" font-size="12" fill="#49647c">smallint generated</text>
+<text x="515" y="276" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="303" font-family="monospace" font-size="13" fill="#203b4e">d5</text>
+<text x="376" y="303" font-family="monospace" font-size="12" fill="#49647c">smallint generated</text>
+<text x="515" y="303" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="330" font-family="monospace" font-size="13" fill="#203b4e">d6</text>
+<text x="376" y="330" font-family="monospace" font-size="12" fill="#49647c">smallint generated</text>
+<text x="515" y="330" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="357" font-family="monospace" font-size="13" fill="#203b4e">status</text>
+<text x="376" y="357" font-family="monospace" font-size="12" fill="#49647c">varchar(16)</text>
+<text x="515" y="357" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="54" y="384" font-family="monospace" font-size="13" fill="#203b4e">current_reservation_id</text>
+<text x="376" y="384" font-family="monospace" font-size="12" fill="#49647c">uuid NULL</text>
+<text x="515" y="384" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376">FK</text>
+<rect x="640" y="80" width="520" height="320" rx="8" fill="white" stroke="#49647c" stroke-width="1.5"/>
+<path d="M648 80 H1152 Q1160 80 1160 88 V120 H640 V88 Q640 80 648 80" fill="#1f5376"/>
+<text x="656" y="107" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="white">reservations</text>
+<text x="654" y="141" font-family="monospace" font-size="13" fill="#203b4e">id</text>
+<text x="976" y="141" font-family="monospace" font-size="12" fill="#49647c">uuid</text>
+<text x="1115" y="141" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376">PK</text>
+<text x="654" y="168" font-family="monospace" font-size="13" fill="#203b4e">user_id</text>
+<text x="976" y="168" font-family="monospace" font-size="12" fill="#49647c">varchar(256)</text>
+<text x="1115" y="168" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="195" font-family="monospace" font-size="13" fill="#203b4e">pattern</text>
+<text x="976" y="195" font-family="monospace" font-size="12" fill="#49647c">varchar(6)</text>
+<text x="1115" y="195" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="222" font-family="monospace" font-size="13" fill="#203b4e">requested_count</text>
+<text x="976" y="222" font-family="monospace" font-size="12" fill="#49647c">smallint</text>
+<text x="1115" y="222" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="249" font-family="monospace" font-size="13" fill="#203b4e">allocated_count</text>
+<text x="976" y="249" font-family="monospace" font-size="12" fill="#49647c">smallint</text>
+<text x="1115" y="249" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="276" font-family="monospace" font-size="13" fill="#203b4e">idempotency_key</text>
+<text x="976" y="276" font-family="monospace" font-size="12" fill="#49647c">varchar(128)</text>
+<text x="1115" y="276" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="303" font-family="monospace" font-size="13" fill="#203b4e">status</text>
+<text x="976" y="303" font-family="monospace" font-size="12" fill="#49647c">varchar(16)</text>
+<text x="1115" y="303" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="330" font-family="monospace" font-size="13" fill="#203b4e">created_at</text>
+<text x="976" y="330" font-family="monospace" font-size="12" fill="#49647c">timestamptz</text>
+<text x="1115" y="330" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="357" font-family="monospace" font-size="13" fill="#203b4e">expires_at</text>
+<text x="976" y="357" font-family="monospace" font-size="12" fill="#49647c">timestamptz</text>
+<text x="1115" y="357" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<text x="654" y="384" font-family="monospace" font-size="13" fill="#203b4e">updated_at</text>
+<text x="976" y="384" font-family="monospace" font-size="12" fill="#49647c">timestamptz</text>
+<text x="1115" y="384" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376"></text>
+<rect x="340" y="565" width="520" height="104" rx="8" fill="white" stroke="#49647c" stroke-width="1.5"/>
+<path d="M348 565 H852 Q860 565 860 573 V605 H340 V573 Q340 565 348 565" fill="#1f5376"/>
+<text x="356" y="592" font-family="Arial,sans-serif" font-size="18" font-weight="bold" fill="white">reservation_items</text>
+<text x="354" y="626" font-family="monospace" font-size="13" fill="#203b4e">reservation_id</text>
+<text x="676" y="626" font-family="monospace" font-size="12" fill="#49647c">uuid</text>
+<text x="815" y="626" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376">PK/FK</text>
+<text x="354" y="653" font-family="monospace" font-size="13" fill="#203b4e">ticket_id</text>
+<text x="676" y="653" font-family="monospace" font-size="12" fill="#49647c">bigint</text>
+<text x="815" y="653" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#1f5376">PK/FK</text>
+<path d="M560 382 H600 V142 H640" fill="none" stroke="#49647c" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<text x="570" y="437" font-family="Arial,sans-serif" font-size="12" fill="#203b4e">Current FK:</text>
+<text x="570" y="455" font-family="Arial,sans-serif" font-size="12" fill="#203b4e">ticket 0..1 parent;</text>
+<text x="570" y="473" font-family="Arial,sans-serif" font-size="12" fill="#203b4e">reservation 0..N tickets</text>
+<path d="M290 400 V620 H340" fill="none" stroke="#49647c" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="46" y="510" font-family="Arial,sans-serif" font-size="14" fill="#203b4e">ticket 1 : 0..N history links</text>
+<path d="M900 400 V600 H860" fill="none" stroke="#49647c" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="858" y="510" font-family="Arial,sans-serif" font-size="14" fill="#203b4e">reservation 1 : 1..N history links</text>
+<text x="40" y="720" font-family="Arial,sans-serif" font-size="14" fill="#203b4e">UNIQUE reservations(user_id, idempotency_key). History PK = (reservation_id, ticket_id).</text>
+<text x="40" y="746" font-family="Arial,sans-serif" font-size="14" fill="#203b4e">Each ticket has one current owner at most; old reservation links remain as history.</text>
+<text x="40" y="772" font-family="Arial,sans-serif" font-size="13" fill="#49647c">1..N history rows per committed reservation is a transaction invariant, not enforced by FK alone.</text>
+</svg>

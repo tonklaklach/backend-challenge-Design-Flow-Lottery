@@ -1,0 +1,9 @@
+flowchart LR
+    client["Client"] --> edge["Gateway: TLS, rate and body limits"]
+    edge --> identity["JWT validation and owner identity"]
+    identity --> service["Stateless allocation API replicas"]
+    service --> primary[("PostgreSQL primary")]
+    worker["Bounded expiration workers"] --> primary
+    service --> telemetry["Metrics, traces and structured logs"]
+    worker --> telemetry
+    importer["Offline inventory import and validation"] --> primary

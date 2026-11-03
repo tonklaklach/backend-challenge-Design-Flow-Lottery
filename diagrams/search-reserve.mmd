@@ -1,0 +1,14 @@
+flowchart TD
+    request["Search request + JWT"] --> validate["Validate identity, JSON and business rules"]
+    validate --> beginTxn["BEGIN READ COMMITTED"]
+    beginTxn --> keyLock["Transaction advisory lock for owner + key"]
+    keyLock --> existing{"Existing key?"}
+    existing -->|"Yes"| payload{"Same pattern and limit?"}
+    payload -->|"No"| conflict["ROLLBACK and 409 IDEMPOTENCY_CONFLICT"]
+    payload -->|"Yes"| replay["Expire if due, load original set, COMMIT, 200 replay"]
+    existing -->|"No"| selectTickets["Select available matches FOR UPDATE SKIP LOCKED, limit 100"]
+    selectTickets --> found{"Any ticket?"}
+    found -->|"No"| unavailable["ROLLBACK and 409 ALLOCATION_UNAVAILABLE"]
+    found -->|"Yes"| persist["Insert reservation + history, mark tickets reserved"]
+    persist --> commitTxn["COMMIT before returning IDs"]
+    commitTxn --> created["201 active reservation"]

@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant userA as User A
+    participant userB as User B
+    participant apiA as API instance A
+    participant apiB as API instance B
+    participant database as PostgreSQL primary
+    userA->>apiA: Search ****23, key A
+    apiA->>database: BEGIN A, select available matches FOR UPDATE SKIP LOCKED
+    database-->>apiA: Lock ticket IDs 24 and 124
+    userB->>apiB: Search 000***, key B
+    apiB->>database: BEGIN B, select available matches FOR UPDATE SKIP LOCKED
+    database-->>apiB: Skip IDs 24 and 124, other tickets or no match
+    apiA->>database: Persist reservation A, history and ticket states, COMMIT A
+    apiA-->>userA: 201 only after commit A
+    alt Other tickets found
+        apiB->>database: Persist distinct reservation B, COMMIT B
+        apiB-->>userB: 201 distinct physical IDs
+    else No selectable rows
+        apiB->>database: ROLLBACK B
+        apiB-->>userB: 409 ALLOCATION_UNAVAILABLE
+    end

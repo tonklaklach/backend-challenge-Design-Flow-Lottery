@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> active: Atomic search and hold
+    active --> released: Owner release before deadline
+    active --> expired: Database deadline reached
+    active --> confirmed: Optional owner finalization before deadline
+    released --> [*]: Tickets available
+    expired --> [*]: Tickets available
+    confirmed --> [*]: Tickets allocated permanently

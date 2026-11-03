@@ -1,0 +1,8 @@
+flowchart TD
+    tick["Worker tick: proposed every 5 seconds"] --> beginTxn["BEGIN"]
+    beginTxn --> batch["Lock up to 1000 due active reservations with SKIP LOCKED"]
+    batch --> checkTime["Confirm expiry using database clock"]
+    checkTime --> tickets["Return current reserved tickets to available, clear reference"]
+    tickets --> reservations["Mark reservations expired, update timestamp"]
+    reservations --> commitTxn["COMMIT"]
+    commitTxn --> observe["Record backlog, oldest overdue age and failures"]

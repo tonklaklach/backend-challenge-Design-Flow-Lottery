@@ -1,0 +1,15 @@
+flowchart TD
+    request["Get / release / optional confirm"] --> auth["Verify JWT and UUID"]
+    auth --> lockRow["BEGIN, lock reservation filtered by owner"]
+    lockRow --> exists{"Found?"}
+    exists -->|"No"| missing["404 RESERVATION_NOT_FOUND"]
+    exists -->|"Yes"| expireCheck["Check database clock after lock, expire if due"]
+    expireCheck --> action{"Requested action?"}
+    action -->|"Get"| read["Load history, COMMIT, 200 current state"]
+    action -->|"Confirm or release"| expired{"Expired?"}
+    expired -->|"Yes"| gone["COMMIT expiry, 410 RESERVATION_EXPIRED"]
+    expired -->|"No"| same{"Already target terminal state?"}
+    same -->|"Yes"| noOp["COMMIT, 200 idempotent result"]
+    same -->|"No"| active{"Still active?"}
+    active -->|"No"| badState["409 STATE_CONFLICT"]
+    active -->|"Yes"| update["Update tickets and reservation, COMMIT, 200"]

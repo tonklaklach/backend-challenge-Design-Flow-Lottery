@@ -1,0 +1,27 @@
+erDiagram
+    reservations o|..o{ tickets : "current assignment"
+    reservations ||--|{ reservationItems : "keeps history"
+    tickets ||--o{ reservationItems : "appears in history"
+    reservations {
+        uuid id PK
+        varchar user_id
+        varchar pattern
+        smallint requested_count
+        smallint allocated_count
+        varchar idempotency_key "unique with user_id"
+        varchar status
+        timestamptz created_at
+        timestamptz expires_at
+        timestamptz updated_at
+    }
+    tickets {
+        bigint id PK
+        varchar number
+        smallint d1 "generated, d2 through d6 also stored"
+        varchar status
+        uuid current_reservation_id FK "nullable when available"
+    }
+    reservationItems {
+        uuid reservation_id PK, FK
+        bigint ticket_id PK, FK
+    }

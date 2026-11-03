@@ -1,0 +1,13 @@
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request validation failed.",
+    "details": [
+      {
+        "field": "pattern",
+        "message": "Must contain exactly six ASCII digits or *."
+      }
+    ]
+  },
+  "request_id": "ea10a48c-1b1a-4a3c-8ea8-a8a9d198c539"
+}
